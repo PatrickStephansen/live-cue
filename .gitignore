@@ -1,6 +1,11 @@
 # dev tools
 .vscode/
 
+#build tools
+.waf*
+build/
+.lock-waf*
+
 # Prerequisites
 *.d
 
