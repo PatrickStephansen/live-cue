@@ -21,6 +21,10 @@ def options(opt):
 def configure(ctx):
     ctx.load('compiler_c')
     ctx.env.LV2DIR = ctx.options.lv2dir
+    ctx.check(compiler='compiler_c',
+              lib='sndfile',
+              mandatory=True,
+              uselib_store='SNDFILE')
 
 
 def build(bld):
@@ -29,11 +33,13 @@ def build(bld):
 
     module_path = re.sub('^lib', '', bld.env.cshlib_PATTERN)
     module_ext = module_path[module_path.rfind('.'):]
+    libs = ['SNDFILE']
 
     compile_lib = bld(features='c cshlib',
                       source='live-cue.c',
                       target='%s/live-cue' % bundle,
-                      install_path=install_path)
+                      install_path=install_path,
+                      use=libs)
     compile_lib.env.cshlib_PATTERN = module_path
     bld(features='subst',
         source='manifest.ttl.in',

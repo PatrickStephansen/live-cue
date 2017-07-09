@@ -7,6 +7,7 @@
 <http://github.com/PatrickStephansen/live-cue>
 	a lv2:Plugin ;
 	doap:name "Live Cue" ;
+	lv2:optionalFeature lv2:hardRTCapable ;
 	lv2:port [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
