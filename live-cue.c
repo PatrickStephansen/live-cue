@@ -73,7 +73,7 @@ load_sample(LiveCue *self, const char *path)
 	}
 
 	// Read data
-	float *const data = calloc(SAMPLE_CHANNELS * info->frames, sizeof(float));
+	float *const data = (float *const)calloc(SAMPLE_CHANNELS * info->frames, sizeof(float));
 
 	if (!data)
 	{
@@ -91,6 +91,7 @@ load_sample(LiveCue *self, const char *path)
 	sample->path = (char *)malloc(path_len + 1);
 	sample->path_len = (uint32_t)path_len;
 	memcpy(sample->path, path, path_len + 1);
+	lv2_log_trace(&self->logger, "sample loaded\n");
 
 	return sample;
 }
@@ -183,8 +184,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 	{
 		if (abs(input[pos]) > DB_CO(self->threshold[pos]))
 		{
+			lv2_log_trace(&self->logger, "hit detected: %.6f\n", input[pos]);
 			start_frame = pos;
 			self->play = !self->play;
+			pos = 0;
 			break;
 		}
 	}
