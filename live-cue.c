@@ -11,8 +11,9 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 
 #define LIVE_CUE_URI "http://github.com/PatrickStephansen/live-cue"
-#define DB_CO(g) ((g) > -90.0f ? powf(10.0f, (g)*0.05f) : 0.0f)
-#define CO_DB(g) (20 * log10(g))
+// -90db noise floor is a conservative estimate
+#define DB_CO(g) ((g) > -90f ? powf(10f, (g)*0.05f) : 0f)
+#define CO_DB(g) (g > 0.000031623f ? 20f * log10(g) : -90f)
 #define SAMPLE_CHANNELS 2
 
 typedef enum {
