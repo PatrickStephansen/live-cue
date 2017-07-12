@@ -12,6 +12,7 @@
 
 #define LIVE_CUE_URI "http://github.com/PatrickStephansen/live-cue"
 #define DB_CO(g) ((g) > -90.0f ? powf(10.0f, (g)*0.05f) : 0.0f)
+#define CO_DB(g) (20 * log10(g))
 #define SAMPLE_CHANNELS 2
 
 typedef enum {
@@ -65,7 +66,7 @@ load_sample(LiveCue *self, const char *path)
 	SF_INFO *const info = &sample->info;
 	SNDFILE *const sndfile = sf_open(path, SFM_READ, info);
 
-	if (!sndfile || !info->frames || (info->channels < 1 || info->channels > SAMPLE_CHANNELS))
+	if (!sndfile || !info->frames || info->channels != SAMPLE_CHANNELS)
 	{
 		lv2_log_error(&self->logger, "Failed to open sample '%s'\n", path);
 		free(sample);
@@ -73,7 +74,7 @@ load_sample(LiveCue *self, const char *path)
 	}
 
 	// Read data
-	float *const data = (float *const)calloc(SAMPLE_CHANNELS * info->frames, sizeof(float));
+	float *const data = calloc(SAMPLE_CHANNELS * info->frames, sizeof(float));
 
 	if (!data)
 	{
@@ -81,8 +82,7 @@ load_sample(LiveCue *self, const char *path)
 		return NULL;
 	}
 	sf_seek(sndfile, 0ul, SEEK_SET);
-	// Read the first SAMPLE_CHANNELS. Any other channels will be ignored.
-	// If the file has less channels than expected, extras will be silent.
+
 	sf_read_float(sndfile, data, info->frames * SAMPLE_CHANNELS);
 	sf_close(sndfile);
 
@@ -182,12 +182,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	for (pos = 0; pos < n_samples; ++pos)
 	{
-		if (abs(input[pos]) > DB_CO(self->threshold[pos]))
+		float inputGain = CO_DB(abs(input[pos]));
+		if (inputGain > *self->threshold)
 		{
-			lv2_log_trace(&self->logger, "hit detected: %.6f\n", input[pos]);
+			lv2_log_trace(&self->logger, "hit detected: %.6f db\n", inputGain);
+			lv2_log_trace(&self->logger, "threshold: %.6f db\n", *self->threshold);
 			start_frame = pos;
 			self->play = !self->play;
 			pos = 0;
+			self->frame = 0;
 			break;
 		}
 	}
@@ -206,9 +209,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 		for (; pos < n_samples && f < lf; ++pos, ++f)
 		{
-			float coef = DB_CO(self->output_gain[pos]);
-			left_output[pos] = self->sample->data[f] * coef;
-			right_output[pos] = self->sample->data[f + self->sample->info.frames] * coef;
+			float coef = DB_CO(*self->output_gain);
+			left_output[pos] = self->sample->data[f * SAMPLE_CHANNELS] * coef;
+			right_output[pos] = self->sample->data[f * SAMPLE_CHANNELS + 1] * coef;
 		}
 
 		self->frame = f;
