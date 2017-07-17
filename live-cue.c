@@ -43,9 +43,9 @@ typedef struct
 {
 	LV2_Log_Log *log;
 	LV2_Log_Logger logger;
-	Sample *active_sample;
+	int active_sample_index;
 	Sample **all_samples;
-	int sample_count;
+	int playlist_length;
 	const float *output_gain;
 	const float *threshold;
 	float *input;
@@ -138,8 +138,8 @@ instantiate(
 	{
 		self->all_samples[i] = load_sample(self, playlist[i]);
 	}
-	self->active_sample = self->all_samples[0];
-
+	self->active_sample_index = 0;
+	self->playlist_length = playlist_length;
 	self->play = false;
 	self->frame = 0;
 
@@ -203,6 +203,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 			lv2_log_trace(&self->logger, "threshold: %.6f db\n", *self->threshold);
 			start_frame = pos;
 			self->play = !self->play;
+			if (!self->play)
+			{
+				self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+			}
 			pos = 0;
 			self->frame = 0;
 			break;
@@ -213,7 +217,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	if (self->play)
 	{
 		uint32_t f = self->frame;
-		const uint32_t lf = self->active_sample->info.frames;
+		const uint32_t lf = self->all_samples[self->active_sample_index]->info.frames;
 
 		for (pos = 0; pos < start_frame; ++pos)
 		{
@@ -224,8 +228,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 		for (; pos < n_samples && f < lf; ++pos, ++f)
 		{
 			float coef = DB_CO(*self->output_gain);
-			left_output[pos] = self->active_sample->data[f * SAMPLE_CHANNELS] * coef;
-			right_output[pos] = self->active_sample->data[f * SAMPLE_CHANNELS + 1] * coef;
+			left_output[pos] = self->all_samples[self->active_sample_index]->data[f * SAMPLE_CHANNELS] * coef;
+			right_output[pos] = self->all_samples[self->active_sample_index]->data[f * SAMPLE_CHANNELS + 1] * coef;
 		}
 
 		self->frame = f;
@@ -253,7 +257,7 @@ static void
 cleanup(LV2_Handle instance)
 {
 	LiveCue *self = (LiveCue *)instance;
-	free_sample(self, self->active_sample);
+	free_sample(self, self->all_samples[self->active_sample_index]);
 	free(self);
 }
 
