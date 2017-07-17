@@ -22,7 +22,8 @@ typedef enum {
 	RIGHT_OUTPUT = 4
 } PortIndex;
 
-static const char *default_sample_file = "/home/patrick/Music/Mad God samples/Cursed.wav";
+// read this from user-defined preset in future
+static const char *playlist[2] = {"/home/patrick/Music/Mad God samples/Green Guardian SAMPLE.wav", "/home/patrick/Music/Mad God samples/The Cursed One and The First Flame SAMPLE.wav"};
 
 typedef struct
 {
@@ -40,7 +41,9 @@ typedef struct
 {
 	LV2_Log_Log *log;
 	LV2_Log_Logger logger;
-	Sample *sample;
+	Sample *active_sample;
+	Sample **all_samples;
+	int sample_count;
 	const float *output_gain;
 	const float *threshold;
 	float *input;
@@ -114,7 +117,7 @@ instantiate(
 	const char *bundle_path,
 	const LV2_Feature *const *features)
 {
-	LiveCue *self = (LiveCue *)calloc(1, sizeof(LiveCue));
+	LiveCue *self = (LiveCue *)malloc(sizeof(LiveCue));
 
 	// Get host features
 	for (int i = 0; features[i]; ++i)
@@ -125,8 +128,18 @@ instantiate(
 		}
 	}
 	lv2_log_logger_init(&self->logger, NULL, self->log);
-	self->sample = load_sample(self, default_sample_file);
+
+	int playlist_length = sizeof(playlist) / sizeof(playlist[0]);
+	lv2_log_trace(&self->logger, "tracks in playlist: %d\n", playlist_length);
+	self->all_samples = (Sample **)malloc(sizeof(Sample *) * playlist_length);
+	for (int i = 0; i < playlist_length; i++)
+	{
+		self->all_samples[i] = load_sample(self, playlist[i]);
+	}
+	self->active_sample = self->all_samples[0];
+
 	self->play = false;
+	self->frame = 0;
 
 	return (LV2_Handle)self;
 
@@ -193,7 +206,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	if (self->play)
 	{
 		uint32_t f = self->frame;
-		const uint32_t lf = self->sample->info.frames;
+		const uint32_t lf = self->active_sample->info.frames;
 
 		for (pos = 0; pos < start_frame; ++pos)
 		{
@@ -204,8 +217,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 		for (; pos < n_samples && f < lf; ++pos, ++f)
 		{
 			float coef = DB_CO(self->output_gain[pos]);
-			left_output[pos] = self->sample->data[f] * coef;
-			right_output[pos] = self->sample->data[f + self->sample->info.frames] * coef;
+			left_output[pos] = self->active_sample->data[f] * coef;
+			right_output[pos] = self->active_sample->data[f + self->active_sample->info.frames] * coef;
 		}
 
 		self->frame = f;
@@ -233,7 +246,7 @@ static void
 cleanup(LV2_Handle instance)
 {
 	LiveCue *self = (LiveCue *)instance;
-	free_sample(self, self->sample);
+	free_sample(self, self->active_sample);
 	free(self);
 }
 
