@@ -21,7 +21,8 @@ typedef enum {
 	TRIGGER_THRESHOLD = 1,
 	TRIGGER_INPUT = 2,
 	LEFT_OUTPUT = 3,
-	RIGHT_OUTPUT = 4
+	RIGHT_OUTPUT = 4,
+	COOL_DOWN = 5
 } PortIndex;
 
 // read this from user-defined preset in future
@@ -48,11 +49,15 @@ typedef struct
 	int playlist_length;
 	const float *output_gain;
 	const float *threshold;
+	// Minimum time between hits in ms
+	const float *cool_down;
 	float *input;
 	float *left_output;
 	float *right_output;
 	// Current position in run()
 	uint32_t frame_offset;
+	double sample_rate;
+	double time_since_last_hit; // ms
 
 	// Playback state
 	sf_count_t frame;
@@ -142,6 +147,8 @@ instantiate(
 	self->playlist_length = playlist_length;
 	self->play = false;
 	self->frame = 0;
+	self->sample_rate = rate;
+	self->time_since_last_hit = 20000.0;
 
 	return (LV2_Handle)self;
 
@@ -175,6 +182,8 @@ connect_port(
 	case RIGHT_OUTPUT:
 		self->right_output = (float *)data;
 		break;
+	case COOL_DOWN:
+		self->cool_down = (const float *)data;
 	}
 }
 
@@ -196,21 +205,32 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	for (pos = 0; pos < n_samples; ++pos)
 	{
-		float inputGain = CO_DB(abs(input[pos]));
-		if (inputGain > *self->threshold)
+		self->time_since_last_hit += 1000.0 / self->sample_rate;
+		if ((float)self->time_since_last_hit > *self->cool_down)
 		{
-			lv2_log_trace(&self->logger, "hit detected: %.6f db\n", inputGain);
-			lv2_log_trace(&self->logger, "threshold: %.6f db\n", *self->threshold);
-			start_frame = pos;
-			self->play = !self->play;
-			if (!self->play)
+			float inputGain = CO_DB(abs(input[pos]));
+			if (inputGain > *self->threshold)
 			{
-				self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+				lv2_log_trace(&self->logger, "hit detected: %.6f db\n", inputGain);
+				lv2_log_trace(&self->logger, "time since last hit: %.6f ms\n", self->time_since_last_hit);
+				start_frame = pos;
+				self->play = !self->play;
+				if (!self->play)
+				{
+					self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+				}
+				self->frame = 0;
+				self->time_since_last_hit = 0.0;
 			}
-			pos = 0;
-			self->frame = 0;
-			break;
 		}
+	}
+	/* A hit causing playback to stop will cause data earlier in the buffer to be discarded,
+	 so stops will appear slightly more responsive than starts. This shouldn't matter in any practical way.
+	*/
+	for (pos = 0; pos < start_frame; ++pos)
+	{
+		left_output[pos] = 0;
+		right_output[pos] = 0;
 	}
 
 	// Render the sample (possibly already in progress)
@@ -218,12 +238,6 @@ run(LV2_Handle instance, uint32_t n_samples)
 	{
 		uint32_t f = self->frame;
 		const uint32_t lf = self->all_samples[self->active_sample_index]->info.frames;
-
-		for (pos = 0; pos < start_frame; ++pos)
-		{
-			left_output[pos] = 0;
-			right_output[pos] = 0;
-		}
 
 		for (; pos < n_samples && f < lf; ++pos, ++f)
 		{
@@ -257,7 +271,10 @@ static void
 cleanup(LV2_Handle instance)
 {
 	LiveCue *self = (LiveCue *)instance;
-	free_sample(self, self->all_samples[self->active_sample_index]);
+	for (int sample_index = 0; sample_index < self->playlist_length; sample_index++)
+	{
+		free_sample(self, self->all_samples[sample_index]);
+	}
 	free(self);
 }
 

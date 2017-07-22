@@ -12,6 +12,7 @@
 		a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 0 ;
+		lv2:requiredFeature urid:map ;
 		lv2:symbol "outputgain" ;
 		lv2:name "Output Gain" ;
 		lv2:default 0.0 ;
@@ -59,5 +60,15 @@
 		lv2:index 4 ;
 		lv2:symbol "outright" ;
 		lv2:name "Right Output"
+	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 5 ;
+		lv2:symbol "cooldown" ;
+		lv2:name "Cool-down" ;
+		lv2:default 250.0 ;
+		lv2:minimum 0.0 ;
+		lv2:maximum 20000.0 ;
+		units:unit units:ms ;
 	] .
 	
