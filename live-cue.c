@@ -117,6 +117,12 @@ free_sample(LiveCue *self, Sample *sample)
 	}
 }
 
+static void
+queue_next_track(LiveCue *self)
+{
+	self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+}
+
 static LV2_Handle
 instantiate(
 	const LV2_Descriptor *descriptor,
@@ -217,7 +223,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 				self->play = !self->play;
 				if (!self->play)
 				{
-					self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+					queue_next_track(self);
 				}
 				self->frame = 0;
 				self->time_since_last_hit = 0.0;
@@ -251,6 +257,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		if (f == lf)
 		{
 			self->play = false;
+			queue_next_track(self);
 		}
 	}
 
