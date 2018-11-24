@@ -16,7 +16,8 @@
 #define CO_DB(g) (g > 0.000031623f ? 20.0f * log10(g) : -90.0f)
 #define SAMPLE_CHANNELS 2
 
-typedef enum {
+typedef enum
+{
 	OUTPUT_GAIN = 0,
 	TRIGGER_THRESHOLD = 1,
 	TRIGGER_INPUT = 2,
@@ -26,7 +27,18 @@ typedef enum {
 } PortIndex;
 
 // read this from user-defined preset in future
-static const char *playlist[2] = {"/home/patrick/Music/Mad God samples/Green Guardian SAMPLE.wav", "/home/patrick/Music/Mad God samples/The Cursed One and The First Flame SAMPLE.wav"};
+static const char *playlist[9] = {
+	"/home/patrick/Music/Mad God samples/album launch/01 HAUNTING PT1.wav",
+	"/home/patrick/Music/Mad God samples/album launch/01 HAUNTING PT2.wav",
+	"/home/patrick/Music/Mad God samples/album launch/02 DeZalze HORROR.wav",
+	"/home/patrick/Music/Mad God samples/album launch/03 I CREATED GOD PT 1.wav",
+	"/home/patrick/Music/Mad God samples/album launch/03 I CREATED GOD PT 2.wav",
+	"/home/patrick/Music/Mad God samples/album launch/04 CRAWLING CHAOS.wav",
+	"/home/patrick/Music/Mad God samples/album launch/05 NO PRAYERS.wav",
+	"/home/patrick/Music/Mad God samples/album launch/06 THE HUNT PT1.wav",
+	"/home/patrick/Music/Mad God samples/album launch/06 THE HUNT PT2.wav",
+
+};
 
 typedef struct
 {
