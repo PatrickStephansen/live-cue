@@ -121,6 +121,7 @@ static void
 queue_next_track(LiveCue *self)
 {
 	self->active_sample_index = (self->active_sample_index + 1) % self->playlist_length;
+	lv2_log_trace(&self->logger, "Next is: %s\n", self->all_samples[self->active_sample_index]->path);
 }
 
 static LV2_Handle
